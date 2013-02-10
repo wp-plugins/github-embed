@@ -4,14 +4,16 @@ Donate link: http://www.leewillis.co.uk/wordpress-plugins/?utm_source=wordpress&
 Tags: github, embed, oembed
 Requires at least: 3.5
 Tested up to: 3.5.1
-Stable tag: 1.1
+Stable tag: 1.2
 
 == Description ==
 
 Plugin that allows you to embed details from github just by pasting in the URL as you would any other embed source. Currently supports:
 
-* GitHub repositories
-* GitHub user profiles
+* Repositories
+* User profiles
+* Project milestone summaries
+* Project contributors
 
 Coming soon:
 
@@ -36,11 +38,21 @@ Not yet, we're hoping to add templating - [all contributions welcome](https://gi
 
 1. GitHub Repository
 2. GitHub user profile
+3. Project milestone summaries
+4. Project contributors
 
 == Changelog ==
 
+= 1.2 =
+
+* Split API calls into separate class 
+* Implement milestone summaries
+* Implement contributor lists
+
 = 1.1 =
-Default CSS and more styling
+
+* Default CSS and more styling
 
 = 1.0 =
-First release
+
+* First release
