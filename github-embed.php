@@ -4,7 +4,7 @@
 Plugin Name: Github Embed
 Plugin URI: http://www.leewillis.co.uk/wordpress-plugins
 Description: Paste the URL to a Github project into your posts or pages, and have the project information pulled in and displayed automatically
-Version: 1.2
+Version: 1.3
 Author: Lee Willis
 Author URI: http://www.leewillis.co.uk/
 */
@@ -33,7 +33,7 @@ Author URI: http://www.leewillis.co.uk/
 
 /**
  * This class handles being the oEmbed provider in terms of registering the URLs that
- * we can embed, and handling the actual oEmbed calls. It relies on the github_api 
+ * we can embed, and handling the actual oEmbed calls. It relies on the github_api
  * class to retrieve the information from the GitHub API.
  * @uses class github_api
  */
@@ -56,10 +56,46 @@ class github_embed {
 		add_action ( 'init', array ( $this, 'register_oembed_handler' ) );
 		add_action ( 'init', array ( $this, 'maybe_handle_oembed' ) );
 		add_action ( 'wp_enqueue_scripts', array ( $this, 'enqueue_styles' ) );
-		
+        add_action ( 'admin_init', array ( $this, 'schedule_expiry' ) );
+        add_action ( 'github_embed_cron', array ( $this, 'cron' ) );
+
 		// @TODO i18n
 
 	}
+
+
+
+    /**
+     * Make sure we have a scheduled event set to clear down the oEmbed cache until
+     * WordPress supports cache_age in oEmbed responses.
+     */
+    function schedule_expiry() {
+
+        if( ! wp_next_scheduled( 'github_embed_cron' ) ) {
+            $frequency = apply_filters ( 'github_embed_cache_frequency', 'daily' );
+           wp_schedule_event( time(), $frequency, 'github_embed_cron' );
+        }
+
+    }
+
+
+
+    /**
+     * Expire old oEmbeds.
+     * Note: This is a bit sledgehammer-to-crack-a-nut hence why I'm only running it
+     * daily. Ideally WP should honour cache_age in oEmbed responses properly
+     */
+    function cron() {
+
+        global $wpdb, $table_prefix;
+
+        $sql = "DELETE
+                  FROM {$table_prefix}postmeta
+                 WHERE meta_key LIKE '_oembed_%'";
+
+        $results = $wpdb->get_results ( $sql );
+
+    }
 
 
 
@@ -71,7 +107,7 @@ class github_embed {
 
 		wp_register_style ( 'github-embed', plugins_url(basename(dirname(__FILE__)).'/css/github-embed.css' ) );
         wp_enqueue_style ( 'github-embed' );
-	
+
 	}
 
 
@@ -102,7 +138,7 @@ class github_embed {
 	private function get_key() {
 
 		$key = get_option ( 'github_oembed_key' );
-		
+
 		if ( ! $key ) {
 			$key = md5 ( time() . rand ( 0,65535 ) );
 			add_option ( 'github_oembed_key', $key, '', 'yes' );
@@ -209,11 +245,11 @@ class github_embed {
 		// @TODO This should all be templated
 		$response->html = '<div class="github-embed github-embed-repo-contributors">';
 		$response->html .= '<p><a href="'.esc_attr($repo->html_url).'" target="_blank"><strong>'.esc_html($repo->description)."</strong></a><br/>";
-		
+
 		$response->html .= '<span class="github-heading">Contributors: </span>';
 
 		$response->html .= '<ul class="github-repo-contributors">';
-		
+
 		foreach ( $contributors as $contributor ) {
 
 			$details = $this->api->get_user ($contributor->login);
@@ -259,21 +295,21 @@ class github_embed {
 		// @TODO This should all be templated
 		$response->html = '<div class="github-embed github-embed-milestone-summary">';
 		$response->html .= '<p><a href="'.esc_attr($repo->html_url).'" target="_blank"><strong>'.esc_html($repo->description)."</strong></a><br/>";
-		
+
 		$response->html .= '<span class="github-heading">Milestone: </span>';
 		$response->html .= '<span class="github-milestone-title">'.esc_html($summary->title)."</span><br>";
-		
+
 		$response->html .= '<span class="github-heading">Issues: </span>';
 		$response->html .= '<span class="github-milestone-issues">';
-		$response->html .= esc_html($summary->open_issues)." open, ";
-		$response->html .= esc_html($summary->closed_issues)." closed.</span><br>";
-		
+		$response->html .= esc_html ( number_format_i18n ( $summary->open_issues ) )." open, ";
+		$response->html .= esc_html ( number_format_i18n ( $summary->closed_issues ) )." closed.</span><br>";
+
 		if ( ! empty ( $summary->due_on ) ) {
 			$response->html .= '<span class="github-heading">Due: </span>';
 			$due_date = date_format ( date_create ( $summary->due_on ), 'jS F Y' );
 			$response->html .= '<span class="github-milestone-due-date">'.esc_html($due_date).'</span><br>';
 		}
-		
+
 		$response->html .= '<p class="github-milestone-description">'.nl2br(esc_html($summary->description))."</p><br>";
 		$response->html .= '</div>';
 
@@ -281,7 +317,7 @@ class github_embed {
 		echo json_encode ( $response );
 		die();
 
-	} 
+	}
 
 
 
@@ -305,8 +341,8 @@ class github_embed {
 		$response->html = '<div class="github-embed github-embed-repository">';
 		$response->html .= '<p><a href="'.esc_attr($repo->html_url).'" target="_blank"><strong>'.esc_html($repo->description)."</strong></a><br/>";
 		$response->html .= '<a href="'.esc_attr($repo->html_url).'" target="_blank">'.esc_html($repo->html_url)."</a><br/>";
-		$response->html .= esc_html($repo->forks_count)." forks.<br/>";
-		$response->html .= esc_html($repo->open_issues_count)." open issues.<br/>";
+		$response->html .= esc_html ( number_format_i18n ( $repo->forks_count ) )." forks.<br/>";
+		$response->html .= esc_html ( number_format_i18n ( $repo->open_issues_count ) )." open issues.<br/>";
 
 		if ( count ( $commits ) ) {
 
@@ -323,7 +359,7 @@ class github_embed {
 				$response->html .= '<a href="https://github.com/'.$owner.'/'.$repository.'/commit/'.esc_attr($commit->sha).'" target="_blank">'.esc_html($commit->commit->message)."</a>, ";
 				$response->html .= esc_html($commit->commit->committer->name);
 				$response->html .= '</li>';
-				
+
 				$cnt++;
 
 			}
@@ -360,8 +396,8 @@ class github_embed {
 		// @TODO This should all be templated
 		$response->html = '<div class="github-embed github-embed-user">';
 		$response->html .= '<p><a href="https://github.com/'.esc_attr($owner).'" target="_blank"><strong>'.esc_html($owner)."</strong></a><br/>";
-		$response->html .= esc_html($owner_info->public_repos).' repositories, ';
-		$response->html .= esc_html($owner_info->followers).' followers.</p>';
+		$response->html .= esc_html ( number_format_i18n ( $owner_info->public_repos ) ).' repositories, ';
+		$response->html .= esc_html ( number_format_i18n ( $owner_info->followers ) ).' followers.</p>';
 		$response->html .= '</div>';
 
 		header ( 'Content-Type: application/json' );
