@@ -12,7 +12,7 @@ define ( 'GEDEBUG_CALL', 1 );
 define ( 'GEDEBUG_RESP', 2 );
 
 // Selected debug level
-define ( 'GITHUB_API_LEVEL', GEDEBUG_NONE );
+define ( 'GITHUB_API_LEVEL', GEDEBUG_RESP );
 
 
 /**
@@ -44,7 +44,7 @@ class github_api {
 	 * @return int          The revised timeout setting
 	 */
 	function http_request_timeout ( $seconds ) {
-		return 25;
+		return $seconds < 25 ? 25 : $seconds;
 	}
 
 
